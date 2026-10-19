@@ -1,0 +1,38 @@
+# Redraws the profile's pictures every morning (the contributions change daily), and whenever the script changes.
+name: Draw the profile
+
+on:
+  schedule:
+    - cron: "23 3 * * *"
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ["scripts/**"]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: draw
+  cancel-in-progress: false
+
+jobs:
+  draw:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+      - run: pip install fonttools==4.67.0 uharfbuzz==0.56.3
+      - run: python scripts/build.py
+        env:
+          GITHUB_USER: ${{ github.repository_owner }}
+      - name: Commit what changed
+        run: |
+          git add README.md assets
+          git diff --cached --quiet && exit 0
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "The contributions, redrawn"
+          git push
